@@ -2,9 +2,8 @@ name: Günlük Vakit Güncelleme
 
 on:
   schedule:
-    # Her gece 00:05'te çalışır (UTC)
     - cron: '5 0 * * *'
-  workflow_dispatch: # Manuel çalıştırmak için buton ekler
+  workflow_dispatch:
 
 jobs:
   build:
@@ -13,15 +12,24 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v4
 
-      - name: API'den Veri Çek
+      - name: API'den Veri Çek ve Doğrula
         run: |
-          # Aladhan API'den Bursa vakitlerini çekiyoruz
-          curl -s "https://api.aladhan.com/v1/timingsByCity?city=Bursa&country=Turkey&method=13" > vakitler.json
+          # Veriyi çek
+          RESPONSE=$(curl -s "https://api.aladhan.com/v1/timingsByCity?city=Bursa&country=Turkey&method=13")
+          
+          # Yanıtın boş olmadığını ve geçerli JSON olduğunu kontrol et (jq ile)
+          if [[ $(echo "$RESPONSE" | jq -r '.code') == "200" ]]; then
+            echo "$RESPONSE" > vakitler.json
+            echo "Veri başarıyla çekildi."
+          else
+            echo "API hatası veya boş yanıt!"
+            exit 1
+          fi
 
       - name: Değişiklikleri Push Et
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add vakitler.json
-          git commit -m "Günlük vakit güncellemesi [skip ci]" || exit 0
-          git push
+          # Eğer değişiklik yoksa hata vermeden çık
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Günlük vakit güncellemesi [skip ci]" && git push)
