@@ -1,0 +1,27 @@
+name: Günlük Vakit Güncelleme
+
+on:
+  schedule:
+    # Her gece 00:05'te çalışır (UTC)
+    - cron: '5 0 * * *'
+  workflow_dispatch: # Manuel çalıştırmak için buton ekler
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: API'den Veri Çek
+        run: |
+          # Aladhan API'den Bursa vakitlerini çekiyoruz
+          curl -s "https://api.aladhan.com/v1/timingsByCity?city=Bursa&country=Turkey&method=13" > vakitler.json
+
+      - name: Değişiklikleri Push Et
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add vakitler.json
+          git commit -m "Günlük vakit güncellemesi [skip ci]" || exit 0
+          git push
